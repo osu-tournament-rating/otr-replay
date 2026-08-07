@@ -1,6 +1,6 @@
 # otr-replay
 
-`otr-replay` reproduces the osu! Tournament Rating (o!TR) player ratings as they were at a certain timestamp provided as input to this application.
+`otr-replay` reproduces osu! Tournament Rating (o!TR) player ratings as they were at a certain timestamp provided as input to this application.
 
 Given a UTC timestamp, the program downloads the most recent public database
 replica available at that time, imports it into a temporary PostgreSQL container,
