@@ -1,0 +1,38 @@
+[
+  {
+    "tag_name": "2026.08.04",
+    "published_at": "2026-08-04T23:41:47Z",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "2026.08.03",
+    "published_at": "2026-08-03T23:05:05Z",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "2026.05.18",
+    "published_at": "2026-05-18T19:56:07Z",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "2025.06.08",
+    "published_at": "2025-06-08T12:00:00Z",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "2025.06.01-rc1",
+    "published_at": "2025-06-01T12:00:00Z",
+    "draft": false,
+    "prerelease": true
+  },
+  {
+    "tag_name": "v1.0.0",
+    "published_at": "2024-01-01T00:00:00Z",
+    "draft": false,
+    "prerelease": false
+  }
+]
