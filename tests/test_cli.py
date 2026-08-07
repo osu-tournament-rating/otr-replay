@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from otr_replay.cli import build_parser, effective_instant, parse_as_of
+from otr_replay.cli import build_parser, parse_as_of
 
 
 @pytest.mark.parametrize(
@@ -33,22 +33,6 @@ def test_parse_as_of_accepts_utc_forms(value, expected):
 def test_parse_as_of_rejects_non_utc_forms(value):
     with pytest.raises(argparse.ArgumentTypeError):
         parse_as_of(value)
-
-
-@pytest.mark.parametrize(
-    ("requested", "expected"),
-    [
-        # Tuesday before noon resolves to the previous Tuesday.
-        ("2026-08-04T11:59Z", "2026-07-28T12:00Z"),
-        ("2026-08-04T12:00Z", "2026-08-04T12:00Z"),
-        ("2026-08-04T12:00:01Z", "2026-08-04T12:00Z"),
-        ("2026-08-05T00:00Z", "2026-08-04T12:00Z"),
-        ("2026-08-10T23:59Z", "2026-08-04T12:00Z"),
-        ("2027-01-01T00:00Z", "2026-12-29T12:00Z"),
-    ],
-)
-def test_effective_instant_floors_to_tuesday_noon(requested, expected):
-    assert effective_instant(parse_as_of(requested)) == parse_as_of(expected)
 
 
 def test_as_of_is_required():

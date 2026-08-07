@@ -30,18 +30,26 @@ def test_parse_index_reads_both_filename_eras_and_skips_companions(replicas):
     assert names == [
         "otr-public-replica_2026-08-04_11_45_01.gz",
         "otr-public-replica_2026-07-28_11_45_01.gz",
+        "otr-public-replica_2026-06-03_23_20_30.gz",
+        "otr-public-replica_2026-05-28_00_00_29.gz",
         "otr-public-replica_2026-05-16_03_13_48.gz",
         "otr-public-replica_2026_05_12_11_50_01.gz",
         "otr-public-replica_2025_10_06_21_13_57.gz",
     ]
     assert replicas[0].timestamp == datetime(2026, 8, 4, 11, 45, 1, tzinfo=UTC)
-    assert replicas[3].timestamp == datetime(2026, 5, 12, 11, 50, 1, tzinfo=UTC)
+    assert replicas[5].timestamp == datetime(2026, 5, 12, 11, 50, 1, tzinfo=UTC)
     assert replicas[0].url.startswith("https://storage.googleapis.com/otr-public-replica/")
 
 
 def test_select_replica_picks_newest_at_or_before_instant(replicas):
     instant = datetime(2026, 7, 28, 12, 0, tzinfo=UTC)
     assert select_replica(replicas, instant).name == "otr-public-replica_2026-07-28_11_45_01.gz"
+
+
+def test_select_replica_includes_off_cadence_dumps(replicas):
+    # A dump published late (Wednesday 23:20) must be picked for a later --as-of.
+    cutoff = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+    assert select_replica(replicas, cutoff).name == "otr-public-replica_2026-06-03_23_20_30.gz"
 
 
 def test_select_replica_fails_when_none_exist_before_instant(replicas):

@@ -5,7 +5,7 @@ import re
 import sys
 import traceback
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 from otr_replay import __version__
@@ -26,13 +26,6 @@ def parse_as_of(value: str) -> datetime:
         return datetime(year, month, day, hour, minute, second, tzinfo=UTC)
     except ValueError as err:
         raise argparse.ArgumentTypeError(f"{value!r}: {err}") from None
-
-
-def effective_instant(requested: datetime) -> datetime:
-    """Return the most recent Tuesday 12:00 UTC at or before the requested time."""
-    anchor = requested.replace(hour=12, minute=0, second=0, microsecond=0)
-    candidate = anchor - timedelta(days=(requested.weekday() - 1) % 7)
-    return candidate if candidate <= requested else candidate - timedelta(days=7)
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -16,10 +16,10 @@ DATASET_TERMS = "https://data.otr.stagec.net/"
 
 
 def output_paths(
-    instant: datetime, snapshot: datetime, tag: str, directory: Path
+    requested: datetime, snapshot: datetime, tag: str, directory: Path
 ) -> tuple[Path, Path]:
     stem = (
-        f"otr-replay_asof-{instant:%Y%m%dT%H%M%SZ}"
+        f"otr-replay_asof-{requested:%Y%m%dT%H%M%SZ}"
         f"_snapshot-{snapshot:%Y%m%dT%H%M%SZ}_processor-{tag}"
     )
     return directory / f"{stem}.csv", directory / f"{stem}.metadata.json"
@@ -59,7 +59,6 @@ def build_metadata(report: Report) -> dict:
         "application_version": __version__,
         "disclaimer": DISCLAIMER,
         "requested_at": _utc(report.requested_at),
-        "effective_instant": _utc(report.instant),
         "replica": {
             "filename": report.replica.ref.name,
             "url": report.replica.ref.url,
@@ -73,7 +72,7 @@ def build_metadata(report: Report) -> dict:
             "image": report.release.image,
         },
         "reconciliation": {
-            "horizon": _utc(report.instant),
+            "horizon": _utc(report.replica.ref.timestamp),
             "ratings_restored": report.reconciliation.ratings_restored,
             "adjustments_rolled_back": report.reconciliation.adjustments_rolled_back,
         },

@@ -25,12 +25,8 @@ class Ui:
     def __init__(self) -> None:
         self.console = Console()
 
-    def header(self, requested: datetime, instant: datetime) -> None:
-        self.console.print(f"[dim]Requested:[/dim]         {requested:%Y-%m-%dT%H:%M:%SZ}")
-        self.console.print(
-            f"[dim]Effective instant:[/dim] {instant:%Y-%m-%dT%H:%M:%SZ} "
-            "[dim](most recent Tuesday 12:00 UTC at or before the request)[/dim]"
-        )
+    def header(self, requested: datetime) -> None:
+        self.console.print(f"[dim]Requested:[/dim] {requested:%Y-%m-%dT%H:%M:%SZ}")
 
     @contextmanager
     def step(self, label: str) -> Iterator[Callable[[str], None]]:
@@ -85,7 +81,6 @@ class Ui:
             ("Metadata", str(report.metadata_path)),
             ("Rows exported", f"{report.row_count:,}"),
             ("Decay rolled back", f"{report.reconciliation.adjustments_rolled_back:,}"),
-            ("Effective instant", f"{report.instant:%Y-%m-%dT%H:%M:%SZ}"),
             ("Replica", report.replica.ref.name),
             ("Processor", f"{report.release.tag} ({report.release.digest[:19]}…)"),
             ("Elapsed", str(report.finished_at - report.started_at).split(".")[0]),

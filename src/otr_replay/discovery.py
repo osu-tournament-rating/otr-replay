@@ -55,13 +55,13 @@ def parse_index(html: str) -> list[ReplicaRef]:
     return sorted(refs, key=lambda ref: ref.timestamp, reverse=True)
 
 
-def select_replica(refs: Sequence[ReplicaRef], instant: datetime) -> ReplicaRef:
-    eligible = [ref for ref in refs if ref.timestamp <= instant]
+def select_replica(refs: Sequence[ReplicaRef], cutoff: datetime) -> ReplicaRef:
+    eligible = [ref for ref in refs if ref.timestamp <= cutoff]
     if not eligible:
         oldest = min((ref.timestamp for ref in refs), default=None)
         raise ReplayError(
             "discovery",
-            f"no public replica exists at or before {instant:%Y-%m-%dT%H:%M:%SZ}",
+            f"no public replica exists at or before {cutoff:%Y-%m-%dT%H:%M:%SZ}",
             (
                 f"The oldest published replica is dated {oldest:%Y-%m-%dT%H:%M:%SZ}; "
                 "choose a later --as-of."
@@ -118,7 +118,7 @@ def fetch_tags(client: httpx.Client) -> list[dict]:
     return tags
 
 
-def select_release(releases: list[dict], tags: list[dict], instant: datetime) -> Release:
+def select_release(releases: list[dict], tags: list[dict], cutoff: datetime) -> Release:
     pushed: dict[str, tuple[datetime, str]] = {
         tag["name"]: (_parse_utc(tag["tag_last_pushed"]), tag["digest"])
         for tag in tags
@@ -138,12 +138,12 @@ def select_release(releases: list[dict], tags: list[dict], instant: datetime) ->
                 digest=digest,
             )
         )
-    usable = [release for release in candidates if release.usable_at <= instant]
+    usable = [release for release in candidates if release.usable_at <= cutoff]
     if not usable:
         earliest = min(candidates, key=lambda release: release.usable_at, default=None)
         raise ReplayError(
             "discovery",
-            f"no processor release is usable at {instant:%Y-%m-%dT%H:%M:%SZ}",
+            f"no processor release is usable at {cutoff:%Y-%m-%dT%H:%M:%SZ}",
             (
                 f"The earliest usable release is {earliest.tag} "
                 f"(usable {earliest.usable_at:%Y-%m-%dT%H:%M:%SZ}); choose a later --as-of."

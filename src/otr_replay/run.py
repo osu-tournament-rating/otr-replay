@@ -10,7 +10,6 @@ from pathlib import Path
 import httpx
 
 from otr_replay import __version__, sql
-from otr_replay.cli import effective_instant
 from otr_replay.console import Ui
 from otr_replay.discovery import (
     discover_replicas,
@@ -38,8 +37,7 @@ RABBITMQ_NOTE = (
 def execute(requested: datetime, ui: Ui, directory: Path) -> Report:
     signal.signal(signal.SIGTERM, _interrupt)
     started = datetime.now(UTC)
-    instant = effective_instant(requested)
-    ui.header(requested, instant)
+    ui.header(requested)
     require_docker()
 
     with httpx.Client(
@@ -48,18 +46,17 @@ def execute(requested: datetime, ui: Ui, directory: Path) -> Report:
         headers={"user-agent": f"otr-replay/{__version__}"},
     ) as client:
         with ui.step("Resolve replica and processor release") as detail:
-            replica_ref = select_replica(discover_replicas(client), instant)
-            release = select_release(fetch_releases(client), fetch_tags(client), instant)
+            replica_ref = select_replica(discover_replicas(client), requested)
+            release = select_release(fetch_releases(client), fetch_tags(client), requested)
             detail(f"{replica_ref.name} + {release.tag}")
         csv_path, metadata_path = output_paths(
-            instant, replica_ref.timestamp, release.tag, directory
+            requested, replica_ref.timestamp, release.tag, directory
         )
         claim(csv_path, metadata_path)
         try:
             return _replay(
-                client, ui, requested, instant, replica_ref, release, csv_path,
-                metadata_path, started,
-            )  # fmt: skip
+                client, ui, requested, replica_ref, release, csv_path, metadata_path, started
+            )
         except BaseException:
             for path in (csv_path, metadata_path):
                 if path.exists() and path.stat().st_size == 0:
@@ -67,7 +64,7 @@ def execute(requested: datetime, ui: Ui, directory: Path) -> Report:
             raise
 
 
-def _replay(client, ui, requested, instant, replica_ref, release, csv_path, metadata_path, started):
+def _replay(client, ui, requested, replica_ref, release, csv_path, metadata_path, started):
     with tempfile.TemporaryDirectory(prefix="otr-replay-") as workdir:
         with ui.transfer(f"Download {replica_ref.name}") as advance:
             replica = download_replica(client, replica_ref, Path(workdir), advance)
@@ -82,9 +79,9 @@ def _replay(client, ui, requested, instant, replica_ref, release, csv_path, meta
             ui.note(RABBITMQ_NOTE)
             with ui.step(f"Run processor {release.tag}") as detail:
                 box.run_processor(release.image, detail)
-            with ui.step("Reconcile decay to the effective instant") as detail:
+            with ui.step("Reconcile decay to the replica timestamp") as detail:
                 reconciliation = sql.parse_counters(
-                    box.psql_script(sql.render_reconcile(instant), phase="reconcile")
+                    box.psql_script(sql.render_reconcile(replica_ref.timestamp), phase="reconcile")
                 )
                 detail(f"{reconciliation.adjustments_rolled_back} adjustments rolled back")
             with ui.step("Export ratings") as detail:
@@ -95,7 +92,6 @@ def _replay(client, ui, requested, instant, replica_ref, release, csv_path, meta
 
     report = Report(
         requested_at=requested,
-        instant=instant,
         replica=replica,
         release=release,
         reconciliation=reconciliation,

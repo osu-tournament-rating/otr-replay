@@ -5,8 +5,8 @@ from datetime import datetime
 
 from otr_replay.models import Reconciliation, ReplayError
 
-# Fabricated adjustments are decay ticks the processor applied past the effective
-# instant because its final decay pass always runs to the wall clock. Only whole
+# Fabricated adjustments are decay ticks the processor applied past the replica
+# timestamp because its final decay pass always runs to the wall clock. Only whole
 # Decay (1) and VolatilityDecay (3) rows are removed, restoring the exact values
 # they recorded; anything else past the horizon aborts the transaction untouched.
 _BODY = """

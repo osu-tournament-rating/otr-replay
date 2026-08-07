@@ -54,7 +54,6 @@ class Reconciliation:
 @dataclass(frozen=True, slots=True)
 class Report:
     requested_at: datetime
-    instant: datetime
     replica: Replica
     release: Release
     reconciliation: Reconciliation

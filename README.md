@@ -5,15 +5,14 @@ published at a chosen point in time. It automates the documented rating-generati
 procedure end to end so the osu! Tournament Committee can independently verify the
 ratings a tournament used, without credentials.
 
-Given a UTC timestamp, the program resolves the effective rating instant (the most
-recent Tuesday 12:00 UTC at or before the timestamp, when o!TR ratings actually
-changed), downloads the matching public database replica, imports it into a
-temporary PostgreSQL container, runs the matching `otr-processor` release, and
-writes the resulting ratings to a CSV file. Because historical processor releases
-apply rating decay up to the moment they run, the program then removes the decay
-adjustments fabricated past the instant and restores the exact values they
-recorded; it never recomputes any rating mathematics, and it aborts without output
-if anything other than decay follows the instant.
+Given a UTC timestamp, the program downloads the most recent public database
+replica available at that time, imports it into a temporary PostgreSQL container,
+runs the most recent `otr-processor` release available at that time, and writes
+the resulting ratings to a CSV file. Because historical processor releases apply
+rating decay up to the moment they run, the program then removes the decay
+adjustments fabricated after the replica was created and restores the exact
+values they recorded; it never recomputes any rating mathematics, and it aborts
+without output if anything other than decay follows the replica timestamp.
 
 ## Prerequisites
 

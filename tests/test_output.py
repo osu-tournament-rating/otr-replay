@@ -15,9 +15,9 @@ from otr_replay.models import (
 from otr_replay.output import build_metadata, claim, output_paths, write_atomic
 
 
-def test_output_paths_name_the_instant_snapshot_and_release(tmp_path):
+def test_output_paths_name_the_request_snapshot_and_release(tmp_path):
     csv, metadata = output_paths(
-        instant=datetime(2026, 7, 28, 12, 0, tzinfo=UTC),
+        requested=datetime(2026, 7, 28, 12, 0, tzinfo=UTC),
         snapshot=datetime(2026, 7, 28, 11, 45, 1, tzinfo=UTC),
         tag="2026.05.18",
         directory=tmp_path,
@@ -44,7 +44,6 @@ def test_metadata_has_disclaimer_and_no_credentials(tmp_path):
     )
     report = Report(
         requested_at=datetime(2026, 8, 1, tzinfo=UTC),
-        instant=datetime(2026, 7, 28, 12, 0, tzinfo=UTC),
         replica=Replica(ref=ref, path=Path("/tmp/x.gz"), sha256="ab" * 32),
         release=Release(
             tag="2026.05.18",
