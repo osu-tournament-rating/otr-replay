@@ -1,11 +1,13 @@
+import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
 import pytest
 
-from otr_replay.discovery import parse_index, select_release, select_replica
-from otr_replay.models import ReplayError
+from otr_replay.discovery import download_replica, parse_index, select_release, select_replica
+from otr_replay.models import ReplayError, ReplicaRef
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -80,3 +82,37 @@ def test_select_release_ignores_github_only_and_non_stable_tags(releases, tags):
 def test_select_release_picks_latest_usable(releases, tags):
     release = select_release(releases, tags, datetime(2026, 8, 5, 12, 0, tzinfo=UTC))
     assert release.tag == "2026.08.04"
+
+
+def _download(tmp_path, handler):
+    ref = ReplicaRef(
+        name="otr-public-replica_2025_10_06_21_13_57.gz",
+        url="https://example.test/otr-public-replica_2025_10_06_21_13_57.gz",
+        timestamp=datetime(2025, 10, 6, 21, 13, 57, tzinfo=UTC),
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        replica = download_replica(client, ref, tmp_path, lambda done, total: None)
+    assert replica.sha256 == hashlib.sha256(b"dump-bytes").hexdigest()
+    return replica
+
+
+def test_download_replica_verifies_published_checksum(tmp_path):
+    digest = hashlib.sha256(b"dump-bytes").hexdigest()
+
+    def handler(request):
+        if request.url.path.endswith(".sha256"):
+            return httpx.Response(
+                200, text=f"{digest} *otr-public-replica_2025_10_06_21_13_57.gz\n"
+            )
+        return httpx.Response(200, content=b"dump-bytes")
+
+    assert _download(tmp_path, handler).verified
+
+
+def test_download_replica_continues_unverified_when_checksum_is_missing(tmp_path):
+    def handler(request):
+        if request.url.path.endswith(".sha256"):
+            return httpx.Response(404)
+        return httpx.Response(200, content=b"dump-bytes")
+
+    assert not _download(tmp_path, handler).verified

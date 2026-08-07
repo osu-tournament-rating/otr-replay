@@ -27,6 +27,7 @@ class Replica:
     ref: ReplicaRef
     path: Path
     sha256: str
+    verified: bool = True
 
 
 @dataclass(frozen=True, slots=True)

@@ -21,6 +21,9 @@ _REPLICA_NAME = re.compile(
 )
 _STABLE_TAG = re.compile(r"^\d{4}\.\d{2}\.\d{2}$")
 
+# Replicas published before this date predate checksum publication.
+CHECKSUM_EXPECTED_AFTER = datetime(2025, 11, 26, tzinfo=UTC)
+
 
 class _Anchors(HTMLParser):
     def __init__(self) -> None:
@@ -176,6 +179,8 @@ def download_replica(
     except httpx.HTTPError as err:
         raise ReplayError("download", f"downloading {ref.name} failed: {err}") from err
     expected = _fetch_checksum(client, ref)
+    if expected is None:
+        return Replica(ref=ref, path=path, sha256=digest.hexdigest(), verified=False)
     if digest.hexdigest() != expected:
         raise ReplayError(
             "download",
@@ -185,7 +190,7 @@ def download_replica(
     return Replica(ref=ref, path=path, sha256=digest.hexdigest())
 
 
-def _fetch_checksum(client: httpx.Client, ref: ReplicaRef) -> str:
+def _fetch_checksum(client: httpx.Client, ref: ReplicaRef) -> str | None:
     try:
         response = client.get(f"{ref.url}.sha256")
     except httpx.HTTPError as err:
@@ -193,12 +198,7 @@ def _fetch_checksum(client: httpx.Client, ref: ReplicaRef) -> str:
             "download", f"fetching the checksum for {ref.name} failed: {err}"
         ) from err
     if response.status_code != 200:
-        raise ReplayError(
-            "download",
-            f"no SHA-256 checksum is published for {ref.name}",
-            "This replica cannot be verified; choose an --as-of covered by a "
-            "checksummed replica.",
-        )
+        return None
     line = response.text.strip()
     match = re.match(r"^([0-9a-f]{64})\s+\*?(\S+)$", line)
     if match is None or match.group(2) != ref.name:

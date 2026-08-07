@@ -12,6 +12,7 @@ import httpx
 from otr_replay import __version__, sql
 from otr_replay.console import Ui
 from otr_replay.discovery import (
+    CHECKSUM_EXPECTED_AFTER,
     discover_replicas,
     download_replica,
     fetch_releases,
@@ -68,6 +69,11 @@ def _replay(client, ui, requested, replica_ref, release, csv_path, metadata_path
     with tempfile.TemporaryDirectory(prefix="otr-replay-") as workdir:
         with ui.transfer(f"Download {replica_ref.name}") as advance:
             replica = download_replica(client, replica_ref, Path(workdir), advance)
+        if not replica.verified and replica_ref.timestamp >= CHECKSUM_EXPECTED_AFTER:
+            ui.note(
+                f"Warning: no SHA-256 checksum is published for {replica_ref.name}; "
+                "the download could not be verified."
+            )
         with DockerSandbox() as box:
             with ui.step("Start temporary PostgreSQL"):
                 pull_image(POSTGRES_IMAGE)

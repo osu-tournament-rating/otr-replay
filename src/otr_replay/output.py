@@ -57,6 +57,7 @@ def build_metadata(report: Report) -> dict:
             "url": report.replica.ref.url,
             "timestamp": _utc(report.replica.ref.timestamp),
             "sha256": report.replica.sha256,
+            "sha256_verified": report.replica.verified,
         },
         "processor": {
             "release": report.release.tag,
