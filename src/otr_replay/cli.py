@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="TIMESTAMP",
         type=parse_as_of,
         required=True,
-        help="UTC instant the ratings were snapshotted, e.g. 2026-06-27T23:59Z",
+        help="UTC time the ratings were snapshotted, e.g. 2026-06-27T23:59",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser

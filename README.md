@@ -25,7 +25,7 @@ Run the program from the repository root with the UTC timestamp at which the
 tournament closed registrations, or another timestamp the ratings were taken from:
 
 ```sh
-uv run otr-replay --as-of 2026-06-27T23:59Z
+uv run otr-replay --as-of 2026-06-27T23:59
 ```
 
 `--as-of` is the only argument. It accepts `YYYY-MM-DDTHH:MM[:SS][Z]` and always
@@ -35,14 +35,10 @@ means UTC.
 
 Two files are written to the working directory and never overwritten:
 
-- `otr-replay_asof-<instant>_snapshot-<replica>_processor-<release>.csv` with the
+- `otr-replay_asof-<timestamp>_snapshot-<replica>_processor-<release>.csv` with the
   columns `osu_id`, `username`, `ruleset`, `rating`, and `volatility`.
 - A `.metadata.json` sidecar recording the inputs, checksums, and reconciliation
   counts for auditing.
-
-A replay is a reproduction, not an official o!TR record. Credit
-[osu! Tournament Rating (o!TR)](https://otr.stagec.net/) and follow the
-[dataset terms](https://data.otr.stagec.net/) when sharing output.
 
 ## License
 

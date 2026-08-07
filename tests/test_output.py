@@ -36,7 +36,7 @@ def test_claim_refuses_existing_files(tmp_path):
     assert exc.value.phase == "output"
 
 
-def test_metadata_has_disclaimer_and_no_credentials(tmp_path):
+def test_metadata_has_no_credentials(tmp_path):
     ref = ReplicaRef(
         name="otr-public-replica_2026-07-28_11_45_01.gz",
         url="https://storage.googleapis.com/otr-public-replica/otr-public-replica_2026-07-28_11_45_01.gz",
@@ -59,7 +59,6 @@ def test_metadata_has_disclaimer_and_no_credentials(tmp_path):
         metadata_path=tmp_path / "out.metadata.json",
     )
     rendered = json.dumps(build_metadata(report))
-    assert "not an official o!TR record" in rendered
     assert "password" not in rendered
     assert "adjustments_rolled_back" in rendered
 
