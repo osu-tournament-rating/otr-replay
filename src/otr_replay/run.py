@@ -67,6 +67,7 @@ def _replay(client, ui, requested, replica_ref, release, csv_path, metadata_path
     with tempfile.TemporaryDirectory(prefix="otr-replay-") as workdir:
         with ui.transfer(f"Download {replica_ref.name}") as advance:
             replica = download_replica(client, replica_ref, Path(workdir), advance)
+        ui.note(f"SHA-256 verified against published checksum: {replica.sha256}")
         with DockerSandbox() as box:
             with ui.step("Start temporary PostgreSQL"):
                 pull_image(POSTGRES_IMAGE)
