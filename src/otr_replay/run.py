@@ -9,10 +9,9 @@ from pathlib import Path
 
 import httpx
 
-from otr_replay import __version__, sql
+from otr_replay import __version__, output, sql
 from otr_replay.console import Ui
 from otr_replay.discovery import (
-    CHECKSUM_EXPECTED_AFTER,
     discover_replicas,
     download_replica,
     fetch_releases,
@@ -25,6 +24,7 @@ from otr_replay.output import build_metadata, claim, output_paths, write_atomic
 from otr_replay.sandbox import (
     POSTGRES_IMAGE,
     DockerSandbox,
+    image_digest,
     pull_image,
     require_docker,
 )
@@ -69,22 +69,18 @@ def _replay(client, ui, requested, replica_ref, release, csv_path, metadata_path
     with tempfile.TemporaryDirectory(prefix="otr-replay-") as workdir:
         with ui.transfer(f"Download {replica_ref.name}") as advance:
             replica = download_replica(client, replica_ref, Path(workdir), advance)
-        if not replica.verified and replica_ref.timestamp >= CHECKSUM_EXPECTED_AFTER:
-            ui.note(
-                f"Warning: no SHA-256 checksum is published for {replica_ref.name}; "
-                "the download could not be verified."
-            )
         with DockerSandbox() as box:
             with ui.step("Start temporary PostgreSQL"):
                 pull_image(POSTGRES_IMAGE)
+                postgres_image = image_digest(POSTGRES_IMAGE) or POSTGRES_IMAGE
                 box.start_postgres()
             with ui.transfer("Import replica") as advance:
                 box.import_dump(replica.path, advance)
             with ui.step(f"Pull processor {release.tag}"):
                 pull_image(release.image)
             ui.note(RABBITMQ_NOTE)
-            with ui.step(f"Run processor {release.tag}") as detail:
-                box.run_processor(release.image, detail)
+            with ui.stream(f"Run processor {release.tag}") as line:
+                box.run_processor(release.image, line)
             with ui.step("Reconcile decay to the replica timestamp") as detail:
                 reconciliation = sql.parse_counters(
                     box.psql_script(sql.render_reconcile(replica_ref.timestamp), phase="reconcile")
@@ -106,6 +102,9 @@ def _replay(client, ui, requested, replica_ref, release, csv_path, metadata_path
         finished_at=datetime.now(UTC),
         csv_path=csv_path,
         metadata_path=metadata_path,
+        csv_sha256=output.sha256_file(csv_path),
+        postgres_image=postgres_image,
+        source_commit=output.source_commit(),
     )
     write_atomic(metadata_path, json.dumps(build_metadata(report), indent=2) + "\n")
     return report

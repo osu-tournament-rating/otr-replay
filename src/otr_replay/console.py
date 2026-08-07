@@ -71,6 +71,22 @@ class Ui:
                 raise
         self.console.print(f"[green]✔[/] {label}")
 
+    @contextmanager
+    def stream(self, label: str) -> Iterator[Callable[[str], None]]:
+        """Like step(), but every reported line stays visible on the console."""
+        start = time.monotonic()
+        self.console.print(f"{label}…")
+
+        def line(text: str) -> None:
+            self.console.print(redact(text), style="dim", markup=False, highlight=False)
+
+        try:
+            yield line
+        except BaseException:
+            self.console.print(f"[red]✘[/] {label}")
+            raise
+        self.console.print(f"[green]✔[/] {label} [dim]({time.monotonic() - start:.1f}s)[/dim]")
+
     def note(self, text: str) -> None:
         self.console.print(f"[dim]{text}[/dim]")
 
@@ -82,6 +98,7 @@ class Ui:
             ("Rows exported", f"{report.row_count:,}"),
             ("Decay rolled back", f"{report.reconciliation.adjustments_rolled_back:,}"),
             ("Replica", report.replica.ref.name),
+            ("Replica checksum", "verified"),
             ("Processor", f"{report.release.tag} ({report.release.digest[:19]}…)"),
             ("Elapsed", str(report.finished_at - report.started_at).split(".")[0]),
         ]

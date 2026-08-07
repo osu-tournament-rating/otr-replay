@@ -1,8 +1,8 @@
 """Finds and fetches the public replica and the processor release."""
 
 import hashlib
-import os
 import re
+import time
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from html.parser import HTMLParser
@@ -20,9 +20,6 @@ _REPLICA_NAME = re.compile(
     r"^otr-public-replica_(\d{4})([-_])(\d{2})\2(\d{2})_(\d{2})_(\d{2})_(\d{2})\.gz$"
 )
 _STABLE_TAG = re.compile(r"^\d{4}\.\d{2}\.\d{2}$")
-
-# Replicas published before this date predate checksum publication.
-CHECKSUM_EXPECTED_AFTER = datetime(2025, 11, 26, tzinfo=UTC)
 
 
 class _Anchors(HTMLParser):
@@ -84,26 +81,12 @@ def discover_replicas(client: httpx.Client) -> list[ReplicaRef]:
 
 def fetch_releases(client: httpx.Client) -> list[dict]:
     headers = {"accept": "application/vnd.github+json", "x-github-api-version": "2022-11-28"}
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if token:
-        headers["authorization"] = f"Bearer {token}"
     releases: list[dict] = []
     url: str | None = f"{RELEASES_URL}?per_page=100"
     for _ in range(10):
         if url is None:
             break
         response = _get(client, url, headers=headers)
-        if (
-            response.status_code in (403, 429)
-            and response.headers.get("x-ratelimit-remaining") == "0"
-        ):
-            raise ReplayError(
-                "discovery",
-                "the GitHub API rate limit is exhausted",
-                "Wait for the limit to reset or set GITHUB_TOKEN to raise it.",
-            )
-        if response.status_code != 200:
-            raise ReplayError("discovery", f"GitHub returned HTTP {response.status_code}")
         releases.extend(response.json())
         url = response.links.get("next", {}).get("url")
     return releases
@@ -163,6 +146,7 @@ def download_replica(
     dest_dir: Path,
     on_chunk: Callable[[int, int], None],
 ) -> Replica:
+    expected = _fetch_checksum(client, ref)
     path = dest_dir / ref.name
     digest = hashlib.sha256()
     downloaded = 0
@@ -178,9 +162,6 @@ def download_replica(
                     on_chunk(downloaded, total)
     except httpx.HTTPError as err:
         raise ReplayError("download", f"downloading {ref.name} failed: {err}") from err
-    expected = _fetch_checksum(client, ref)
-    if expected is None:
-        return Replica(ref=ref, path=path, sha256=digest.hexdigest(), verified=False)
     if digest.hexdigest() != expected:
         raise ReplayError(
             "download",
@@ -190,15 +171,15 @@ def download_replica(
     return Replica(ref=ref, path=path, sha256=digest.hexdigest())
 
 
-def _fetch_checksum(client: httpx.Client, ref: ReplicaRef) -> str | None:
+def _fetch_checksum(client: httpx.Client, ref: ReplicaRef) -> str:
     try:
-        response = client.get(f"{ref.url}.sha256")
-    except httpx.HTTPError as err:
+        response = _get(client, f"{ref.url}.sha256")
+    except ReplayError as err:
         raise ReplayError(
-            "download", f"fetching the checksum for {ref.name} failed: {err}"
+            "download",
+            f"the SHA-256 checksum for {ref.name} could not be fetched: {err.message}",
+            "Every replica has a published checksum, and a download is never used unverified.",
         ) from err
-    if response.status_code != 200:
-        return None
     line = response.text.strip()
     match = re.match(r"^([0-9a-f]{64})\s+\*?(\S+)$", line)
     if match is None or match.group(2) != ref.name:
@@ -207,15 +188,30 @@ def _fetch_checksum(client: httpx.Client, ref: ReplicaRef) -> str | None:
 
 
 def _get(client: httpx.Client, url: str, headers: dict[str, str] | None = None) -> httpx.Response:
-    try:
-        response = client.get(url, headers=headers)
-    except httpx.HTTPError as err:
-        raise ReplayError("discovery", f"request to {url} failed: {err}") from err
-    if response.status_code != 200 and not (
-        url.startswith(RELEASES_URL) and response.status_code in (403, 429)
-    ):
-        raise ReplayError("discovery", f"{url} returned HTTP {response.status_code}")
-    return response
+    failure = f"request to {url} failed"
+    for delay in (0, 1, 2, 4, 8):
+        time.sleep(delay)
+        try:
+            response = client.get(url, headers=headers)
+        except httpx.HTTPError as err:
+            failure = f"request to {url} failed: {err}"
+            continue
+        if (
+            response.status_code in (403, 429)
+            and response.headers.get("x-ratelimit-remaining") == "0"
+        ):
+            raise ReplayError(
+                "discovery",
+                f"the {response.request.url.host} rate limit is exhausted",
+                "Wait for the limit to reset and retry.",
+            )
+        if response.status_code in (429, 500, 502, 503, 504):
+            failure = f"{url} returned HTTP {response.status_code}"
+            continue
+        if response.status_code != 200:
+            raise ReplayError("discovery", f"{url} returned HTTP {response.status_code}")
+        return response
+    raise ReplayError("discovery", failure)
 
 
 def _raise_for_status(response: httpx.Response, url: str) -> None:
@@ -224,4 +220,6 @@ def _raise_for_status(response: httpx.Response, url: str) -> None:
 
 
 def _parse_utc(value: str) -> datetime:
-    return datetime.fromisoformat(value).astimezone(UTC)
+    parsed = datetime.fromisoformat(value)
+    # A timestamp without an offset is UTC by definition, never host-local time.
+    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)

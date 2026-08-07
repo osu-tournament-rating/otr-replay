@@ -1,6 +1,8 @@
 """Output files: naming, atomic writes, metadata."""
 
+import hashlib
 import os
+import subprocess
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -47,17 +49,45 @@ def write_atomic(path: Path, data: str) -> None:
             os.unlink(tmp)
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        while chunk := file.read(1 << 20):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def source_commit() -> str | None:
+    """The git commit this copy of otr-replay runs from, if it is a checkout."""
+    package_dir = Path(__file__).resolve().parent
+    try:
+        head = subprocess.run(
+            ["git", "-C", str(package_dir), "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=10,
+        )  # fmt: skip
+        if head.returncode != 0:
+            return None
+        status = subprocess.run(
+            ["git", "-C", str(package_dir), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=10,
+        )  # fmt: skip
+    except OSError:
+        return None
+    dirty = "-dirty" if status.returncode == 0 and status.stdout.strip() else ""
+    return head.stdout.strip() + dirty
+
+
 def build_metadata(report: Report) -> dict:
     return {
         "application": "otr-replay",
         "application_version": __version__,
+        "application_commit": report.source_commit,
         "requested_at": _utc(report.requested_at),
         "replica": {
             "filename": report.replica.ref.name,
             "url": report.replica.ref.url,
             "timestamp": _utc(report.replica.ref.timestamp),
             "sha256": report.replica.sha256,
-            "sha256_verified": report.replica.verified,
         },
         "processor": {
             "release": report.release.tag,
@@ -65,12 +95,17 @@ def build_metadata(report: Report) -> dict:
             "image_pushed_at": _utc(report.release.pushed_at),
             "image": report.release.image,
         },
+        "sandbox": {"postgres_image": report.postgres_image},
         "reconciliation": {
             "horizon": _utc(report.replica.ref.timestamp),
             "ratings_restored": report.reconciliation.ratings_restored,
             "adjustments_rolled_back": report.reconciliation.adjustments_rolled_back,
         },
-        "output": {"csv": report.csv_path.name, "rows": report.row_count},
+        "output": {
+            "csv": report.csv_path.name,
+            "csv_sha256": report.csv_sha256,
+            "rows": report.row_count,
+        },
         "execution": {
             "started_at": _utc(report.started_at),
             "ended_at": _utc(report.finished_at),

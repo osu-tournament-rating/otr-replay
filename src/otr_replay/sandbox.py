@@ -38,6 +38,13 @@ def pull_image(image: str) -> None:
     _run(["docker", "pull", "--quiet", image], timeout=1800)
 
 
+def image_digest(image: str) -> str | None:
+    """The pulled image's registry digest, e.g. postgres@sha256:…, if one exists."""
+    template = "{{range .RepoDigests}}{{println .}}{{end}}"
+    digests = _run(["docker", "image", "inspect", "--format", template, image]).split()
+    return digests[0] if digests else None
+
+
 class DockerSandbox:
     """Run-labeled Docker resources, always removed on exit."""
 
@@ -81,10 +88,14 @@ class DockerSandbox:
         )  # fmt: skip
         deadline = time.monotonic() + 120
         while time.monotonic() < deadline:
+            # -h forces a TCP probe. The entrypoint's initialization-phase server only
+            # listens on the unix socket, so a socket probe can pass just before that
+            # server shuts down and the real one starts, failing the import.
             ready = subprocess.run(
-                ["docker", "exec", self.db, "pg_isready", "-U", "postgres", "-d", "postgres"],
+                ["docker", "exec", self.db, "pg_isready", "-h", "127.0.0.1",
+                 "-U", "postgres", "-d", "postgres"],
                 capture_output=True,
-            )
+            )  # fmt: skip
             if ready.returncode == 0:
                 return
             state = subprocess.run(

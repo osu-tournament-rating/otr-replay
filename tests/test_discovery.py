@@ -6,7 +6,14 @@ from pathlib import Path
 import httpx
 import pytest
 
-from otr_replay.discovery import download_replica, parse_index, select_release, select_replica
+from otr_replay.discovery import (
+    _get,
+    _parse_utc,
+    download_replica,
+    parse_index,
+    select_release,
+    select_replica,
+)
 from otr_replay.models import ReplayError, ReplicaRef
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -106,13 +113,59 @@ def test_download_replica_verifies_published_checksum(tmp_path):
             )
         return httpx.Response(200, content=b"dump-bytes")
 
-    assert _download(tmp_path, handler).verified
+    _download(tmp_path, handler)
 
 
-def test_download_replica_continues_unverified_when_checksum_is_missing(tmp_path):
+def test_download_replica_fails_when_checksum_is_missing(tmp_path):
     def handler(request):
         if request.url.path.endswith(".sha256"):
             return httpx.Response(404)
         return httpx.Response(200, content=b"dump-bytes")
 
-    assert not _download(tmp_path, handler).verified
+    with pytest.raises(ReplayError) as exc:
+        _download(tmp_path, handler)
+    assert "could not be fetched" in exc.value.message
+
+
+def test_download_replica_fails_on_checksum_mismatch(tmp_path):
+    def handler(request):
+        if request.url.path.endswith(".sha256"):
+            return httpx.Response(
+                200, text=f"{'0' * 64}  otr-public-replica_2025_10_06_21_13_57.gz\n"
+            )
+        return httpx.Response(200, content=b"dump-bytes")
+
+    with pytest.raises(ReplayError) as exc:
+        _download(tmp_path, handler)
+    assert "mismatch" in exc.value.message
+
+
+def test_parse_utc_treats_missing_offset_as_utc():
+    assert _parse_utc("2026-08-04T23:41:47") == datetime(2026, 8, 4, 23, 41, 47, tzinfo=UTC)
+    assert _parse_utc("2026-08-04T23:41:47+02:00") == datetime(2026, 8, 4, 21, 41, 47, tzinfo=UTC)
+
+
+def test_get_retries_transient_failures_with_backoff(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr("otr_replay.discovery.time.sleep", sleeps.append)
+    statuses = iter([503, 429, 200])
+
+    with httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(next(statuses)))
+    ) as client:
+        assert _get(client, "https://example.test/").status_code == 200
+    assert sleeps == [0, 1, 2]
+
+
+def test_get_reports_exhausted_rate_limits(monkeypatch):
+    monkeypatch.setattr("otr_replay.discovery.time.sleep", lambda _: None)
+
+    def handler(request):
+        return httpx.Response(403, headers={"x-ratelimit-remaining": "0"})
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(ReplayError) as exc,
+    ):
+        _get(client, "https://api.github.com/repos/o/r/releases")
+    assert "rate limit is exhausted" in exc.value.message

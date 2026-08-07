@@ -11,15 +11,15 @@ from pathlib import Path
 from otr_replay import __version__
 from otr_replay.models import ReplayError
 
-_AS_OF = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?Z?$")
+_AS_OF = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$")
 
 
 def parse_as_of(value: str) -> datetime:
-    """Parse a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS][Z]."""
+    """Parse a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS]."""
     match = _AS_OF.match(value)
     if match is None:
         raise argparse.ArgumentTypeError(
-            f"{value!r} is not a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS][Z]"
+            f"{value!r} is not a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS]"
         )
     year, month, day, hour, minute, second = (int(part or 0) for part in match.groups())
     try:

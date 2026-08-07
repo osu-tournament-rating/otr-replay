@@ -22,7 +22,8 @@ tournament closed registrations, or another timestamp the ratings were taken fro
 uv run otr-replay --as-of 2026-06-27T23:59
 ```
 
-`--as-of` is the only argument. It expects a UTC timestamp in this format: `YYYY-MM-DDTHH:MM[:SS][Z]`. `:SS` and `Z` are optional.
+`--as-of` expects a timestamp in this format: `YYYY-MM-DDTHH:MM[:SS]`. `:SS` is
+optional, and the timestamp is always interpreted as UTC.
 
 ## Output
 

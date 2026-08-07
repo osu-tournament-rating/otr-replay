@@ -27,7 +27,6 @@ class Replica:
     ref: ReplicaRef
     path: Path
     sha256: str
-    verified: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,3 +62,6 @@ class Report:
     finished_at: datetime
     csv_path: Path
     metadata_path: Path
+    csv_sha256: str
+    postgres_image: str
+    source_commit: str | None

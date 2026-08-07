@@ -57,10 +57,14 @@ def test_metadata_has_no_credentials(tmp_path):
         finished_at=datetime(2026, 8, 6, 1, 30, tzinfo=UTC),
         csv_path=tmp_path / "out.csv",
         metadata_path=tmp_path / "out.metadata.json",
+        csv_sha256="ef" * 32,
+        postgres_image="postgres@sha256:" + "12" * 32,
+        source_commit="ab" * 20,
     )
     rendered = json.dumps(build_metadata(report))
     assert "password" not in rendered
     assert "adjustments_rolled_back" in rendered
+    assert build_metadata(report)["output"]["csv_sha256"] == "ef" * 32
 
 
 def test_write_atomic_replaces_claimed_file(tmp_path):
