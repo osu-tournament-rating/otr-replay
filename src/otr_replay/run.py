@@ -50,9 +50,7 @@ def execute(requested: datetime, ui: Ui, directory: Path) -> Report:
             replica_ref = select_replica(discover_replicas(client), requested)
             release = select_release(fetch_releases(client), fetch_tags(client), requested)
             detail(f"{replica_ref.name} + {release.tag}")
-        csv_path, metadata_path = output_paths(
-            requested, replica_ref.timestamp, release.tag, directory
-        )
+        csv_path, metadata_path = output_paths(requested, directory)
         claim(csv_path, metadata_path)
         try:
             return _replay(

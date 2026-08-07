@@ -29,9 +29,10 @@ optional, and the timestamp is always interpreted as UTC.
 
 Two files are written to the working directory and never overwritten:
 
-- `otr-replay_asof-<timestamp>_snapshot-<replica>_processor-<release>.csv` with the
-  columns `osu_id`, `username`, `ruleset`, `rating`, and `volatility`.
-- A `.metadata.json` which records the inputs, checksums, and reconciliation counts for auditing.
+- `otr-replay_<timestamp>.csv` with the columns `osu_id`, `username`, `ruleset`,
+  `rating`, and `volatility`. `<timestamp>` is the `--as-of` value, e.g.
+  `otr-replay_20260627T235900Z.csv`.
+- A matching `.metadata.json` which records the inputs — replica snapshot, processor release, image digests — plus checksums and reconciliation counts for auditing.
 
 ## License
 

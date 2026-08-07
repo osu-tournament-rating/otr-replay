@@ -15,17 +15,13 @@ from otr_replay.models import (
 from otr_replay.output import build_metadata, claim, output_paths, write_atomic
 
 
-def test_output_paths_name_the_request_snapshot_and_release(tmp_path):
+def test_output_paths_name_the_requested_timestamp(tmp_path):
     csv, metadata = output_paths(
         requested=datetime(2026, 7, 28, 12, 0, tzinfo=UTC),
-        snapshot=datetime(2026, 7, 28, 11, 45, 1, tzinfo=UTC),
-        tag="2026.05.18",
         directory=tmp_path,
     )
-    assert csv.name == (
-        "otr-replay_asof-20260728T120000Z_snapshot-20260728T114501Z_processor-2026.05.18.csv"
-    )
-    assert metadata.name == csv.name.replace(".csv", ".metadata.json")
+    assert csv.name == "otr-replay_20260728T120000Z.csv"
+    assert metadata.name == "otr-replay_20260728T120000Z.metadata.json"
 
 
 def test_claim_refuses_existing_files(tmp_path):

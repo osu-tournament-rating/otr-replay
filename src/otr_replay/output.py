@@ -11,13 +11,9 @@ from otr_replay import __version__
 from otr_replay.models import ReplayError, Report
 
 
-def output_paths(
-    requested: datetime, snapshot: datetime, tag: str, directory: Path
-) -> tuple[Path, Path]:
-    stem = (
-        f"otr-replay_asof-{requested:%Y%m%dT%H%M%SZ}"
-        f"_snapshot-{snapshot:%Y%m%dT%H%M%SZ}_processor-{tag}"
-    )
+def output_paths(requested: datetime, directory: Path) -> tuple[Path, Path]:
+    """Name outputs after the requested timestamp; the metadata carries the rest."""
+    stem = f"otr-replay_{requested:%Y%m%dT%H%M%SZ}"
     return directory / f"{stem}.csv", directory / f"{stem}.metadata.json"
 
 
