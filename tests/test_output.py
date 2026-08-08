@@ -34,8 +34,8 @@ def test_claim_refuses_existing_files(tmp_path):
 
 def test_metadata_has_no_credentials(tmp_path):
     ref = ReplicaRef(
-        name="otr-public-replica_2026-07-28_11_45_01.gz",
-        url="https://storage.googleapis.com/otr-public-replica/otr-public-replica_2026-07-28_11_45_01.gz",
+        name="otr-public-replica_2026-07-28T11:45:01Z.gz",
+        url="https://storage.googleapis.com/otr-public-replica/otr-public-replica_2026-07-28T11%3A45%3A01Z.gz",
         timestamp=datetime(2026, 7, 28, 11, 45, 1, tzinfo=UTC),
     )
     report = Report(

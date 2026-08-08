@@ -11,15 +11,15 @@ from pathlib import Path
 from otr_replay import __version__
 from otr_replay.models import ReplayError
 
-_AS_OF = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$")
+_AS_OF = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?Z?$")
 
 
 def parse_as_of(value: str) -> datetime:
-    """Parse a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS]."""
+    """Parse a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS][Z]."""
     match = _AS_OF.match(value)
     if match is None:
         raise argparse.ArgumentTypeError(
-            f"{value!r} is not a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS]"
+            f"{value!r} is not a UTC timestamp of the form YYYY-MM-DDTHH:MM[:SS][Z]"
         )
     year, month, day, hour, minute, second = (int(part or 0) for part in match.groups())
     try:
@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="TIMESTAMP",
         type=parse_as_of,
         required=True,
-        help="UTC time the ratings were snapshotted, e.g. 2026-06-27T23:59",
+        help="UTC time the ratings were snapshotted, e.g. 2026-06-27T23:59 or 2026-08-08T00:06:13Z",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser

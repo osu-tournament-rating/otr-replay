@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import unquote
 
 import httpx
 
@@ -17,7 +18,7 @@ RELEASES_URL = "https://api.github.com/repos/osu-tournament-rating/otr-processor
 TAGS_URL = "https://hub.docker.com/v2/repositories/stagecodes/otr-processor/tags"
 
 _REPLICA_NAME = re.compile(
-    r"^otr-public-replica_(\d{4})([-_])(\d{2})\2(\d{2})_(\d{2})_(\d{2})_(\d{2})\.gz$"
+    r"^otr-public-replica_(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z\.gz$"
 )
 _STABLE_TAG = re.compile(r"^\d{4}\.\d{2}\.\d{2}$")
 
@@ -36,9 +37,8 @@ def parse_replica_timestamp(name: str) -> datetime | None:
     match = _REPLICA_NAME.match(name)
     if match is None:
         return None
-    year, _, month, day, hour, minute, second = match.groups()
     try:
-        return datetime(*map(int, (year, month, day, hour, minute, second)), tzinfo=UTC)
+        return datetime(*map(int, match.groups()), tzinfo=UTC)
     except ValueError:
         return None
 
@@ -48,7 +48,8 @@ def parse_index(html: str) -> list[ReplicaRef]:
     parser.feed(html)
     refs = []
     for href in parser.hrefs:
-        name = href.rsplit("/", 1)[-1]
+        # Colons in ISO 8601 names may arrive percent-encoded in hrefs.
+        name = unquote(href.rsplit("/", 1)[-1])
         timestamp = parse_replica_timestamp(name)
         if timestamp is not None:
             refs.append(ReplicaRef(name=name, url=href, timestamp=timestamp))
