@@ -92,6 +92,17 @@ def test_select_release_picks_latest_usable(releases, tags):
     assert release.tag == "2026.08.04"
 
 
+def test_release_is_bounded_by_the_replica_not_the_request(replicas, releases, tags):
+    # 2026.08.04 shipped roughly 12 hours after the 2026-08-04T11:45:01Z replica was
+    # taken, so a request dated after that release must still replay with 2026.08.03.
+    requested = datetime(2026, 8, 8, tzinfo=UTC)
+    replica = select_replica(replicas, requested)
+    assert replica.name == "otr-public-replica_2026-08-04T11:45:01Z.gz"
+    assert select_release(releases, tags, replica.timestamp).tag == "2026.08.03"
+    # Bounding by the request would have picked a release the replica never saw.
+    assert select_release(releases, tags, requested).tag == "2026.08.04"
+
+
 def _download(tmp_path, handler):
     ref = ReplicaRef(
         name="otr-public-replica_2025-10-06T21:13:57Z.gz",

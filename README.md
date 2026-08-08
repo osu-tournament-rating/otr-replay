@@ -4,8 +4,8 @@
 
 Given a UTC timestamp, the program downloads the most recent public database
 replica available at that time, imports it into a temporary PostgreSQL container,
-runs the most recent `otr-processor` release available at that time, and writes
-the resulting ratings to a CSV file. A reconciliation is also performed as described
+runs the most recent `otr-processor` release that was available when that replica
+was taken, and writes the resulting ratings to a CSV file. A reconciliation is also performed as described
 in [our online documentation](https://docs.otr.stagec.net/Steps-to-Generate-Ratings#Decay-Reconciliation).
 
 ## Prerequisites

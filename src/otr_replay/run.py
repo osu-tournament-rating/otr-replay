@@ -48,7 +48,11 @@ def execute(requested: datetime, ui: Ui, directory: Path) -> Report:
     ) as client:
         with ui.step("Resolve replica and processor release") as detail:
             replica_ref = select_replica(discover_replicas(client), requested)
-            release = select_release(fetch_releases(client), fetch_tags(client), requested)
+            # The replica, not the requested instant, bounds the release: ratings in a
+            # replica were produced by whichever release was live when it was taken.
+            release = select_release(
+                fetch_releases(client), fetch_tags(client), replica_ref.timestamp
+            )
             detail(f"{replica_ref.name} + {release.tag}")
         csv_path, metadata_path = output_paths(requested, directory)
         claim(csv_path, metadata_path)
