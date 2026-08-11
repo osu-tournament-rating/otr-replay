@@ -128,6 +128,24 @@ def test_download_replica_verifies_published_checksum(tmp_path):
     _download(tmp_path, handler)
 
 
+def test_download_replica_writes_a_windows_safe_local_filename(tmp_path):
+    digest = hashlib.sha256(b"dump-bytes").hexdigest()
+
+    def handler(request):
+        if request.url.path.endswith(".sha256"):
+            return httpx.Response(
+                200, text=f"{digest} *otr-public-replica_2025-10-06T21:13:57Z.gz\n"
+            )
+        return httpx.Response(200, content=b"dump-bytes")
+
+    replica = _download(tmp_path, handler)
+    # Colons are illegal in Windows file names; only the remote name keeps them.
+    assert ":" not in replica.path.name
+    assert replica.path.parent == tmp_path
+    assert replica.path.is_file()
+    assert replica.ref.name == "otr-public-replica_2025-10-06T21:13:57Z.gz"
+
+
 def test_download_replica_fails_when_checksum_is_missing(tmp_path):
     def handler(request):
         if request.url.path.endswith(".sha256"):

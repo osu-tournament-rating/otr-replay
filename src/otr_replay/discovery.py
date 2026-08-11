@@ -148,7 +148,9 @@ def download_replica(
     on_chunk: Callable[[int, int], None],
 ) -> Replica:
     expected = _fetch_checksum(client, ref)
-    path = dest_dir / ref.name
+    # Colons in ISO 8601 names are illegal on Windows; ref.name stays the remote
+    # name for checksum matching and metadata.
+    path = dest_dir / ref.name.replace(":", "-")
     digest = hashlib.sha256()
     downloaded = 0
     try:
