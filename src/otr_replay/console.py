@@ -96,7 +96,7 @@ class Ui:
             ("Ratings CSV", str(report.csv_path)),
             ("Metadata", str(report.metadata_path)),
             ("Rows exported", f"{report.row_count:,}"),
-            ("Decay rolled back", f"{report.reconciliation.adjustments_rolled_back:,}"),
+            ("Decay reconciled", f"{report.reconciliation.adjustments_reconciled:,}"),
             ("Replica", report.replica.ref.name),
             ("Replica checksum", "verified"),
             ("Processor", f"{report.release.tag} ({report.release.digest[:19]}…)"),

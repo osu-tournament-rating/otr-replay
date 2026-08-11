@@ -60,7 +60,7 @@ def test_rollback_restores_each_ruleset_deletes_and_exports(seeded, tmp_path):
     result = parse_counters(seeded.psql_script(render_reconcile(HORIZON), phase="reconcile"))
 
     assert result.ratings_restored == 2
-    assert result.adjustments_rolled_back == 3
+    assert result.adjustments_reconciled == 3
     assert seeded.psql("SELECT rating, volatility FROM player_ratings WHERE id = 1") == "1600|190"
     assert seeded.psql("SELECT rating, volatility FROM player_ratings WHERE id = 2") == "1400|210"
     assert seeded.psql("SELECT rating, volatility FROM player_ratings WHERE id = 3") == "900|300"
@@ -108,4 +108,4 @@ def test_rating_disagreeing_with_final_adjustment_aborts_untouched(seeded):
 def test_reconcile_is_idempotent(seeded):
     seeded.psql_script(render_reconcile(HORIZON), phase="reconcile")
     second = parse_counters(seeded.psql_script(render_reconcile(HORIZON), phase="reconcile"))
-    assert second == type(second)(ratings_restored=0, adjustments_rolled_back=0)
+    assert second == type(second)(ratings_restored=0, adjustments_reconciled=0)

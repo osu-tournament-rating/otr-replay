@@ -47,7 +47,7 @@ def test_metadata_has_no_credentials(tmp_path):
             pushed_at=datetime(2026, 5, 18, 19, 59, 11, tzinfo=UTC),
             digest="sha256:" + "cd" * 32,
         ),
-        reconciliation=Reconciliation(ratings_restored=10, adjustments_rolled_back=20),
+        reconciliation=Reconciliation(ratings_restored=10, adjustments_reconciled=20),
         row_count=1234,
         started_at=datetime(2026, 8, 6, 1, 0, tzinfo=UTC),
         finished_at=datetime(2026, 8, 6, 1, 30, tzinfo=UTC),
@@ -59,7 +59,7 @@ def test_metadata_has_no_credentials(tmp_path):
     )
     rendered = json.dumps(build_metadata(report))
     assert "password" not in rendered
-    assert "adjustments_rolled_back" in rendered
+    assert "adjustments_reconciled" in rendered
     assert build_metadata(report)["output"]["csv_sha256"] == "ef" * 32
 
 

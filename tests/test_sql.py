@@ -34,10 +34,10 @@ def test_export_has_exactly_the_five_columns():
 
 
 def test_parse_counters_reads_both_values():
-    stdout = "OTR_REPLAY_RATINGS_RESTORED=12\nOTR_REPLAY_ADJUSTMENTS_ROLLED_BACK=34\n"
+    stdout = "OTR_REPLAY_RATINGS_RESTORED=12\nOTR_REPLAY_ADJUSTMENTS_RECONCILED=34\n"
     result = parse_counters(stdout)
     assert result.ratings_restored == 12
-    assert result.adjustments_rolled_back == 34
+    assert result.adjustments_reconciled == 34
 
 
 def test_parse_counters_fails_when_a_counter_is_missing():

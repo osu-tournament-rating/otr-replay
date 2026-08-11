@@ -88,7 +88,7 @@ def _replay(client, ui, requested, replica_ref, release, csv_path, metadata_path
                 reconciliation = sql.parse_counters(
                     box.psql_script(sql.render_reconcile(replica_ref.timestamp), phase="reconcile")
                 )
-                detail(f"{reconciliation.adjustments_rolled_back} adjustments rolled back")
+                detail(f"{reconciliation.adjustments_reconciled} adjustments reconciled")
             with ui.step("Export ratings") as detail:
                 row_count = _export(box, csv_path)
                 detail(f"{row_count} rows")

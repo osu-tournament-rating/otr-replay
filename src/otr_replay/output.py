@@ -95,7 +95,7 @@ def build_metadata(report: Report) -> dict:
         "reconciliation": {
             "horizon": _utc(report.replica.ref.timestamp),
             "ratings_restored": report.reconciliation.ratings_restored,
-            "adjustments_rolled_back": report.reconciliation.adjustments_rolled_back,
+            "adjustments_reconciled": report.reconciliation.adjustments_reconciled,
         },
         "output": {
             "csv": report.csv_path.name,

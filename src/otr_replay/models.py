@@ -48,7 +48,7 @@ class Release:
 @dataclass(frozen=True, slots=True)
 class Reconciliation:
     ratings_restored: int
-    adjustments_rolled_back: int
+    adjustments_reconciled: int
 
 
 @dataclass(frozen=True, slots=True)

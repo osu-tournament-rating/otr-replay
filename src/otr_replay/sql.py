@@ -56,7 +56,7 @@ WITH deleted AS (
   WHERE "timestamp" > current_setting('otr.horizon')::timestamptz
     AND adjustment_type IN (1, 3)
   RETURNING 1)
-SELECT 'OTR_REPLAY_ADJUSTMENTS_ROLLED_BACK=' || count(*) FROM deleted;
+SELECT 'OTR_REPLAY_ADJUSTMENTS_RECONCILED=' || count(*) FROM deleted;
 
 DO $assert$
 DECLARE violations bigint; examples text;
@@ -113,7 +113,7 @@ def parse_counters(stdout: str) -> Reconciliation:
     try:
         return Reconciliation(
             ratings_restored=counters["RATINGS_RESTORED"],
-            adjustments_rolled_back=counters["ADJUSTMENTS_ROLLED_BACK"],
+            adjustments_reconciled=counters["ADJUSTMENTS_RECONCILED"],
         )
     except KeyError as err:
         raise ReplayError(
