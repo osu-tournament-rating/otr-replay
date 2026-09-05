@@ -1,9 +1,10 @@
 # otr-replay agent guidance
 
 Run commands from the repository root through `uv`; do not call `pip` or
-`python` directly. First read `/home/stage/code/git/otr/AGENTS.md` and
-`/home/stage/code/git/otr/.agents/WORKFLOW.md`. Python 3.14 is required. The app
-and Docker tests need Docker.
+`python` directly. Expand `$HOME` to the current user's home directory, then
+first read `$HOME/code/git/otr/AGENTS.md` and
+`$HOME/code/git/otr/.agents/WORKFLOW.md`. Python 3.14 is required. The app and
+Docker tests need Docker.
 
 The tool reproduces published ratings at a UTC `--as-of` time from the newest
 eligible public replica and processor release. It writes a CSV and audit
