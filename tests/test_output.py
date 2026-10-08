@@ -1,9 +1,11 @@
 import json
+import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from otr_replay import __version__
 from otr_replay.models import (
     Reconciliation,
     Release,
@@ -32,13 +34,13 @@ def test_claim_refuses_existing_files(tmp_path):
     assert exc.value.phase == "output"
 
 
-def test_metadata_has_no_credentials(tmp_path):
+def _report(tmp_path, **release_source):
     ref = ReplicaRef(
         name="otr-public-replica_2026-07-28T11:45:01Z.gz",
         url="https://storage.googleapis.com/otr-public-replica/otr-public-replica_2026-07-28T11%3A45%3A01Z.gz",
         timestamp=datetime(2026, 7, 28, 11, 45, 1, tzinfo=UTC),
     )
-    report = Report(
+    return Report(
         requested_at=datetime(2026, 8, 1, tzinfo=UTC),
         replica=Replica(ref=ref, path=Path("/tmp/x.gz"), sha256="ab" * 32),
         release=Release(
@@ -46,6 +48,7 @@ def test_metadata_has_no_credentials(tmp_path):
             published_at=datetime(2026, 5, 18, 19, 56, 7, tzinfo=UTC),
             pushed_at=datetime(2026, 5, 18, 19, 59, 11, tzinfo=UTC),
             digest="sha256:" + "cd" * 32,
+            **release_source,
         ),
         reconciliation=Reconciliation(ratings_restored=10, adjustments_reconciled=20),
         row_count=1234,
@@ -57,10 +60,45 @@ def test_metadata_has_no_credentials(tmp_path):
         postgres_image="postgres@sha256:" + "12" * 32,
         source_commit="ab" * 20,
     )
+
+
+def test_metadata_has_no_credentials(tmp_path):
+    report = _report(tmp_path)
     rendered = json.dumps(build_metadata(report))
     assert "password" not in rendered
     assert "adjustments_reconciled" in rendered
     assert build_metadata(report)["output"]["csv_sha256"] == "ef" * 32
+
+
+def test_metadata_adds_the_release_source_after_the_existing_processor_keys(tmp_path):
+    report = _report(
+        tmp_path,
+        repository="osu-tournament-rating/otr-processor",
+        html_url="https://github.com/osu-tournament-rating/otr-processor/releases/tag/2026.05.18",
+    )
+    # Earlier metadata files have the first four keys, unchanged in name and format.
+    assert build_metadata(report)["processor"] == {
+        "release": "2026.05.18",
+        "github_published_at": "2026-05-18T19:56:07Z",
+        "image_pushed_at": "2026-05-18T19:59:11Z",
+        "image": "stagecodes/otr-processor@sha256:" + "cd" * 32,
+        "github_repository": "osu-tournament-rating/otr-processor",
+        "github_release_url": (
+            "https://github.com/osu-tournament-rating/otr-processor/releases/tag/2026.05.18"
+        ),
+    }
+    assert list(build_metadata(report)["processor"])[:4] == [
+        "release",
+        "github_published_at",
+        "image_pushed_at",
+        "image",
+    ]
+
+
+def test_version_matches_the_project_version(tmp_path):
+    pyproject = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+    assert __version__ == pyproject["project"]["version"]
+    assert build_metadata(_report(tmp_path))["application_version"] == __version__
 
 
 def test_write_atomic_replaces_claimed_file(tmp_path):
