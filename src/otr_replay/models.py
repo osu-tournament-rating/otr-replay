@@ -35,6 +35,9 @@ class Release:
     published_at: datetime
     pushed_at: datetime
     digest: str
+    # The GitHub repository and release page the release was discovered from.
+    repository: str | None = None
+    html_url: str | None = None
 
     @property
     def usable_at(self) -> datetime:

@@ -90,6 +90,8 @@ def build_metadata(report: Report) -> dict:
             "github_published_at": _utc(report.release.published_at),
             "image_pushed_at": _utc(report.release.pushed_at),
             "image": report.release.image,
+            "github_repository": report.release.repository,
+            "github_release_url": report.release.html_url,
         },
         "sandbox": {"postgres_image": report.postgres_image},
         "reconciliation": {

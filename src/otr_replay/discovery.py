@@ -3,7 +3,7 @@
 import hashlib
 import re
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
@@ -14,13 +14,24 @@ import httpx
 from otr_replay.models import Release, ReplayError, Replica, ReplicaRef
 
 DATA_SITE = "https://data.otr.stagec.net/"
-RELEASES_URL = "https://api.github.com/repos/osu-tournament-rating/otr-processor/releases"
+RELEASES_URL = "https://api.github.com/repos/{repository}/releases"
 TAGS_URL = "https://hub.docker.com/v2/repositories/stagecodes/otr-processor/tags"
+# Repositories whose releases may be processor releases, in precedence order: when
+# both have a release with the same tag, the earlier repository's entry wins.
+PROCESSOR_REPOSITORIES = (
+    # The processor's former repository. Its releases, through 2026.08.16, are history.
+    "osu-tournament-rating/otr-processor",
+    # The processor has lived in apps/processor since 2026-10-08. Some older website
+    # releases share a tag with an otr-processor release, such as 2026.08.16; the
+    # Docker tag of that name is the processor's, so otr-processor comes first.
+    "osu-tournament-rating/otr-web",
+)
 
 _REPLICA_NAME = re.compile(
     r"^otr-public-replica_(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z\.gz$"
 )
-_STABLE_TAG = re.compile(r"^\d{4}\.\d{2}\.\d{2}$")
+# YYYY.MM.DD for the first release of a day, YYYY.MM.DD.N for later ones that day.
+_STABLE_TAG = re.compile(r"(\d{4})\.(\d{2})\.(\d{2})(?:\.(\d+))?")
 
 
 class _Anchors(HTMLParser):
@@ -81,9 +92,28 @@ def discover_replicas(client: httpx.Client) -> list[ReplicaRef]:
 
 
 def fetch_releases(client: httpx.Client) -> list[dict]:
+    return merge_releases(
+        {repo: _fetch_github_releases(client, repo) for repo in PROCESSOR_REPOSITORIES}
+    )
+
+
+def merge_releases(sources: Mapping[str, Iterable[dict]]) -> list[dict]:
+    """Merge GitHub releases keyed by repository, given in precedence order.
+
+    Each entry gains a "repository" key. When several repositories have a release
+    with the same tag, only the first repository's entry is kept.
+    """
+    merged: dict[str, dict] = {}
+    for repository, releases in sources.items():
+        for entry in releases:
+            merged.setdefault(entry["tag_name"], {**entry, "repository": repository})
+    return list(merged.values())
+
+
+def _fetch_github_releases(client: httpx.Client, repository: str) -> list[dict]:
     headers = {"accept": "application/vnd.github+json", "x-github-api-version": "2022-11-28"}
     releases: list[dict] = []
-    url: str | None = f"{RELEASES_URL}?per_page=100"
+    url: str | None = f"{RELEASES_URL.format(repository=repository)}?per_page=100"
     for _ in range(10):
         if url is None:
             break
@@ -105,7 +135,24 @@ def fetch_tags(client: httpx.Client) -> list[dict]:
     return tags
 
 
+def tag_key(tag: str) -> tuple[int, int, int, int] | None:
+    """Order YYYY.MM.DD[.N] tags numerically, a bare date as N = 0; None for other tags.
+
+    Comparing the strings would put 2026.10.04.10 before 2026.10.04.2.
+    """
+    match = _STABLE_TAG.fullmatch(tag)
+    if match is None:
+        return None
+    year, month, day, n = match.groups()
+    return int(year), int(month), int(day), int(n or 0)
+
+
 def select_release(releases: list[dict], tags: list[dict], cutoff: datetime) -> Release:
+    # A release counts only if it is both a GitHub release and an active Docker Hub
+    # tag with a digest. otr-web releases the whole monorepo and pushes
+    # stagecodes/otr-processor:<tag> only for releases in which the processor
+    # changed, so the releases that have an image are exactly the processor's
+    # releases. A release without one left the previous processor release in effect.
     pushed: dict[str, tuple[datetime, str]] = {
         tag["name"]: (_parse_utc(tag["tag_last_pushed"]), tag["digest"])
         for tag in tags
@@ -114,7 +161,7 @@ def select_release(releases: list[dict], tags: list[dict], cutoff: datetime) -> 
     candidates = []
     for entry in releases:
         tag = entry["tag_name"]
-        if entry["draft"] or entry["prerelease"] or not _STABLE_TAG.match(tag) or tag not in pushed:
+        if entry["draft"] or entry["prerelease"] or tag_key(tag) is None or tag not in pushed:
             continue
         pushed_at, digest = pushed[tag]
         candidates.append(
@@ -123,6 +170,8 @@ def select_release(releases: list[dict], tags: list[dict], cutoff: datetime) -> 
                 published_at=_parse_utc(entry["published_at"]),
                 pushed_at=pushed_at,
                 digest=digest,
+                repository=entry.get("repository"),
+                html_url=entry.get("html_url"),
             )
         )
     usable = [release for release in candidates if release.usable_at <= cutoff]
@@ -138,7 +187,7 @@ def select_release(releases: list[dict], tags: list[dict], cutoff: datetime) -> 
                 else "No stable processor release exists on both GitHub and Docker Hub."
             ),
         )
-    return max(usable, key=lambda release: release.tag)
+    return max(usable, key=lambda release: tag_key(release.tag))
 
 
 def download_replica(
